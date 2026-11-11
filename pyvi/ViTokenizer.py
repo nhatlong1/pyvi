@@ -78,22 +78,22 @@ class ViTokenizer:
     def sylabelize(text):
         text = ud.normalize('NFC', text)
 
-        specials = ["==>", "->", "\.\.\.", ">>",'\n']
-        digit = "\d+([\.,_]\d+)+"
-        email = "([a-zA-Z0-9_.+-]+@([a-zA-Z0-9-]+\.)+[a-zA-Z0-9-]+)"
+        specials = [r"==>", r"->", r"\.\.\.", r">>", '\n']
+        digit = r"\d+([\.,_]\d+)+"
+        email = r"([a-zA-Z0-9_.+-]+@([a-zA-Z0-9-]+\.)+[a-zA-Z0-9-]+)"
         #web = "^(http[s]?://)?(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+$"
-        web = "\w+://[^\s]+"
+        web = r"\w+://[^\s]+"
         #datetime = [
         #    "\d{1,2}\/\d{1,2}(\/\d{1,4})(^\dw. )+",
         #    "\d{1,2}-\d{1,2}(-\d+)?",
         #]
-        word = "\w+"
-        non_word = "[^\w\s]"
+        word = r"\w+"
+        non_word = r"[^\w\s]"
         abbreviations = [
-            "[A-ZĐ]+\.",
-            "Tp\.",
-            "Mr\.", "Mrs\.", "Ms\.",
-            "Dr\.", "ThS\."
+            r"[A-ZĐ]+\.",
+            r"Tp\.",
+            r"Mr\.", r"Mrs\.", r"Ms\.",
+            r"Dr\.", r"ThS\."
         ]
 
         patterns = []
