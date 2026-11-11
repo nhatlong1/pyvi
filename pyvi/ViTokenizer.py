@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import os
+import pickle
 import re
 import string
 import unicodedata as ud
 from pathlib import Path
 from typing import ClassVar
 
-import joblib
 from underthesea_core import CRFFeaturizer, CRFTagger
 
 
@@ -28,8 +28,10 @@ class ViTokenizer:
         if cls._estimator is None or cls._featurizer is None:
             estimator = CRFTagger()
             estimator.load(str(cls._model_dir / "models.bin"))
-            features = joblib.load(cls._model_dir / "features.bin")
-            dictionary = joblib.load(cls._model_dir / "dictionary.bin")
+            with open(cls._model_dir / "features.bin", "rb") as f:
+                features = pickle.load(f)
+            with open(cls._model_dir / "dictionary.bin", "rb") as f:
+                dictionary = pickle.load(f)
             featurizer = CRFFeaturizer(features, dictionary)
             cls._estimator = estimator
             cls._featurizer = featurizer
