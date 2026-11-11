@@ -76,7 +76,7 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=['scikit-learn', 'sklearn-crfsuite',],
+    install_requires=['underthesea-core', 'joblib'],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
@@ -91,7 +91,7 @@ setup(
     # installed, specify them here.  If using Python 2.6 or less, then these
     # have to be included in MANIFEST.in as well.
     package_data={
-        'pyvi': ['models/words.txt', 'models/pyvi.pkl', 'models/pyvipos.pkl', 'models/pyvi3.pkl', 'models/pyvipos3.pkl', 'models/vidiac.crfsuite']
+        'pyvi': ['models/*', 'models/ws_crf_vlsp2013_20230727/*']
     },
 
     # Although 'package_data' is the preferred approach, in some case you may
