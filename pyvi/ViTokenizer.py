@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import os
 import pickle
 import re
 import string
+import threading
 import unicodedata as ud
 from pathlib import Path
 from typing import ClassVar
@@ -20,51 +20,64 @@ class ViTokenizer:
     _model_dir: ClassVar[Path] = Path(__file__).resolve().parent / "models" / "ws_crf_vlsp2013_20230727"
     _estimator: ClassVar[CRFTagger | None] = None
     _featurizer: ClassVar[CRFFeaturizer | None] = None
+    _model_lock: ClassVar[threading.Lock] = threading.Lock()
 
     _patterns: ClassVar[re.Pattern | None] = None
+    _patterns_lock: ClassVar[threading.Lock] = threading.Lock()
 
     @classmethod
     def _ensure_model(cls) -> tuple[CRFTagger, CRFFeaturizer]:
-        if cls._estimator is None or cls._featurizer is None:
-            estimator = CRFTagger()
-            estimator.load(str(cls._model_dir / "models.bin"))
-            with open(cls._model_dir / "features.bin", "rb") as f:
-                features = pickle.load(f)
-            with open(cls._model_dir / "dictionary.bin", "rb") as f:
-                dictionary = pickle.load(f)
-            featurizer = CRFFeaturizer(features, dictionary)
-            cls._estimator = estimator
-            cls._featurizer = featurizer
-        return cls._estimator, cls._featurizer
+        estimator = cls._estimator
+        featurizer = cls._featurizer
+        if estimator is None or featurizer is None:
+            with cls._model_lock:
+                estimator = cls._estimator
+                featurizer = cls._featurizer
+                if estimator is None or featurizer is None:
+                    estimator = CRFTagger()
+                    estimator.load(str(cls._model_dir / "models.bin"))
+                    with open(cls._model_dir / "features.bin", "rb") as f:
+                        features = pickle.load(f)
+                    with open(cls._model_dir / "dictionary.bin", "rb") as f:
+                        dictionary = pickle.load(f)
+                    featurizer = CRFFeaturizer(features, dictionary)
+                    cls._featurizer = featurizer
+                    cls._estimator = estimator
+        return estimator, featurizer
 
     @classmethod
     def _get_patterns(cls) -> re.Pattern:
-        if cls._patterns is None:
-            specials = [r"==>", r"->", r"\.\.\.", r">>", r"\n"]
-            digit = r"\d+(?:[\.,_]\d+)+"
-            email = r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"
-            web = r"\w+://[^\s]+"
-            abbreviations = [
-                r"[A-ZĐ]+\.",
-                r"Tp\.",
-                r"Mr\.",
-                r"Mrs\.",
-                r"Ms\.",
-                r"Dr\.",
-                r"ThS\.",
-            ]
-            word_hyphen = r"(?<=\b)\w+\-[\w+-]*\w+"
-            word = r"\w+"
-            non_word = r"[^\w\s]"
+        patterns = cls._patterns
+        if patterns is None:
+            with cls._patterns_lock:
+                patterns = cls._patterns
+                if patterns is None:
+                    specials = [r"==>", r"->", r"\.\.\.", r">>", r"\n"]
+                    digit = r"\d+(?:[\.,_]\d+)+"
+                    email = r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"
+                    web = r"\w+://[^\s]+"
+                    abbreviations = [
+                        r"[A-ZĐ]+\.",
+                        r"Tp\.",
+                        r"Mr\.",
+                        r"Mrs\.",
+                        r"Ms\.",
+                        r"Dr\.",
+                        r"ThS\.",
+                    ]
+                    word_hyphen = r"(?<=\b)\w+\-[\w+-]*\w+"
+                    word = r"\w+"
+                    non_word = r"[^\w\s]"
 
-            combined = (
-                specials
-                + abbreviations
-                + [web, email, word_hyphen, digit, word, non_word]
-            )
-            pattern_str = "(" + "|".join(combined) + ")"
-            cls._patterns = re.compile(pattern_str, re.UNICODE)
-        return cls._patterns
+                    combined = (
+                        specials
+                        + abbreviations
+                        + [web, email, word_hyphen, digit, word, non_word]
+                    )
+                    pattern_str = "(" + "|".join(combined) + ")"
+                    patterns = re.compile(pattern_str, re.UNICODE)
+                    cls._patterns = patterns
+        return patterns
 
     @staticmethod
     def sylabelize(text: str) -> tuple[str, list[str]]:
@@ -77,16 +90,10 @@ class ViTokenizer:
 
     @staticmethod
     def is_code_or_sku(token: str) -> bool:
-        """Detect alphanumeric identifiers, package codes, SKUs, or percentages."""
+        """Detect mixed alphanumeric identifiers, package codes, or SKUs."""
         if not token:
             return False
-        if token[0].isdigit() or token[-1].isdigit():
-            return True
-        if "-" in token or "_" in token or "/" in token:
-            return True
-        if any(c.isdigit() for c in token) and any(c.isalpha() for c in token):
-            return True
-        return False
+        return any(c.isdigit() for c in token) and any(c.isalpha() for c in token)
 
     @staticmethod
     def tokenize(text: str) -> str:
